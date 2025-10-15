@@ -1,12 +1,19 @@
-import React from "react";
-import { View, StyleSheet, FlatList, SafeAreaView, Text } from "react-native";
+import React, { useEffect, useState } from "react";
+import {
+  View,
+  StyleSheet,
+  FlatList,
+  SafeAreaView,
+  Text,
+  ActivityIndicator,
+} from "react-native";
 import ActivityCard from "../components/ActivityCard";
 import {
   Activity,
   MainTabsParamList,
   RootStackParamList,
 } from "../types/types";
-import exercises from "../../assets/exercises.json";
+import { fetchAllExercises } from "../services/ExerciseService"; // <-- import here
 import {
   CompositeNavigationProp,
   useNavigation,
@@ -14,38 +21,64 @@ import {
 import { StackNavigationProp } from "@react-navigation/stack";
 import { BottomTabNavigationProp } from "@react-navigation/bottom-tabs";
 
-// Create a composite type that understands both the Stack and Tab navigators
 type HomeScreenNavigationProp = CompositeNavigationProp<
   BottomTabNavigationProp<MainTabsParamList, "Home">,
   StackNavigationProp<RootStackParamList>
 >;
 
 const HomeScreen: React.FC = () => {
-  // Get the navigation object using the useNavigation hook
   const navigation = useNavigation<HomeScreenNavigationProp>();
+  const [exercises, setExercises] = useState<Activity[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
 
-  // This function will be called when an item is pressed
   const handlePressExercise = (exercise: Activity) => {
-    // Navigate to the 'ExerciseDetail' screen and pass the selected exercise as a parameter
     navigation.navigate("ExerciseDetail", { exercise });
   };
 
-  // Update renderItem to pass the onPress handler to the ActivityCard
   const renderItem = ({ item }: { item: Activity }) => (
     <ActivityCard activity={item} onPress={() => handlePressExercise(item)} />
   );
+
+  useEffect(() => {
+    const loadExercises = async () => {
+      try {
+        const data = await fetchAllExercises();
+        setExercises(data);
+      } catch (err) {
+        setError("Failed to load exercises.");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadExercises();
+  }, []);
 
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Exercises</Text>
       </View>
-      <FlatList
-        data={exercises}
-        renderItem={renderItem}
-        keyExtractor={(item) => item.name}
-        contentContainerStyle={styles.list}
-      />
+
+      {loading ? (
+        <ActivityIndicator
+          size="large"
+          color="#0000ff"
+          style={{ marginTop: 20 }}
+        />
+      ) : error ? (
+        <Text style={{ color: "red", textAlign: "center", marginTop: 20 }}>
+          {error}
+        </Text>
+      ) : (
+        <FlatList
+          data={exercises}
+          renderItem={renderItem}
+          keyExtractor={(item) => item.name}
+          contentContainerStyle={styles.list}
+        />
+      )}
     </SafeAreaView>
   );
 };
